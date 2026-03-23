@@ -1,0 +1,33 @@
+--swiftversion 6.2
+--indent 4
+--indentcase false
+--trimwhitespace always
+--voidtype void
+--wraparguments before-first
+--wrapparameters before-first
+--wrapcollections before-first
+--maxwidth 140
+--self remove
+--stripunusedargs closure-only
+--header strip
+--ifdef no-indent
+--semicolons never
+--commas inline
+--operatorfunc spaced
+--nospaceoperators ...,..<
+--ranges spaced
+--elseposition same-line
+--guardelse next-line
+--emptybraces no-space
+--redundanttype inferred
+--importgrouping alpha
+
+--disable redundantReturn
+--disable hoistPatternLet
+--disable redundantSendable
+--disable numberFormatting
+--disable conditionalAssignment
+--disable wrapMultilineStatementBraces
+--disable redundantSelf
+
+--exclude .build,DualAudioTranscriber/.build,speech_test*.swift

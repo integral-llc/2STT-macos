@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Only check staged Swift files (new or modified, not deleted)
+STAGED_SWIFT_FILES=$(git diff --cached --name-only --diff-filter=ACM -- '*.swift')
+
+if [ -z "$STAGED_SWIFT_FILES" ]; then
+    exit 0
+fi
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+
+# --- SwiftFormat (auto-fix staged files, then re-stage) ---
+if command -v swiftformat &>/dev/null; then
+    echo "[pre-commit] SwiftFormat..."
+    for file in $STAGED_SWIFT_FILES; do
+        if [ -f "$REPO_ROOT/$file" ]; then
+            swiftformat "$REPO_ROOT/$file" --config "$REPO_ROOT/.swiftformat" --quiet 2>/dev/null
+            git add "$REPO_ROOT/$file"
+        fi
+    done
+else
+    echo "[pre-commit] warning: swiftformat not installed, skipping"
+fi
+
+# --- SwiftLint (lint staged files, block on errors only) ---
+if command -v swiftlint &>/dev/null; then
+    echo "[pre-commit] SwiftLint..."
+    LINT_FAILED=false
+    for file in $STAGED_SWIFT_FILES; do
+        if [ -f "$REPO_ROOT/$file" ]; then
+            if ! swiftlint lint --config "$REPO_ROOT/.swiftlint.yml" --quiet "$REPO_ROOT/$file" 2>/dev/null; then
+                LINT_FAILED=true
+            fi
+        fi
+    done
+    if [ "$LINT_FAILED" = true ]; then
+        echo ""
+        echo "[pre-commit] SwiftLint found issues. Errors block the commit; fix warnings when possible."
+    fi
+    # SwiftLint exits non-zero on errors (not warnings), which will fail the hook
+else
+    echo "[pre-commit] warning: swiftlint not installed, skipping"
+fi
