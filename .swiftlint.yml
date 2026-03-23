@@ -1,6 +1,5 @@
 excluded:
   - .build
-  - DualAudioTranscriber/.build
   - speech_test*.swift
   - "*.generated.swift"
 

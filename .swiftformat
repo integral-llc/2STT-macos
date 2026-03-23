@@ -30,4 +30,4 @@
 --disable wrapMultilineStatementBraces
 --disable redundantSelf
 
---exclude .build,DualAudioTranscriber/.build,speech_test*.swift
+--exclude .build,speech_test*.swift

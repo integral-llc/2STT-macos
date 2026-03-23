@@ -1,15 +1,15 @@
 #!/bin/bash
 set -euo pipefail
 
-cd "$(dirname "$0")/DualAudioTranscriber"
+cd "$(dirname "$0")"
 
-APP_DIR=".build/debug/DualAudioTranscriber.app"
-BINARY=".build/debug/DualAudioTranscriber"
+APP_DIR=".build/debug/DualSTTApp.app"
+BINARY=".build/debug/DualSTTApp"
 CONTENTS="$APP_DIR/Contents"
 IDENTITY="Apple Development: Eugen Rata (3H5VXQQR83)"
 
 # Kill any running instance
-pkill -f "DualAudioTranscriber.app" 2>/dev/null || true
+pkill -f "DualSTTApp.app" 2>/dev/null || true
 sleep 0.3
 
 # Build
@@ -20,7 +20,7 @@ echo "Build OK"
 # Create .app bundle if needed
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources"
 
-cp "$BINARY" "$CONTENTS/MacOS/DualAudioTranscriber"
+cp "$BINARY" "$CONTENTS/MacOS/DualSTTApp"
 
 cat > "$CONTENTS/Info.plist" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -28,11 +28,11 @@ cat > "$CONTENTS/Info.plist" << 'EOF'
 <plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
-    <string>DualAudioTranscriber</string>
+    <string>DualSTTApp</string>
     <key>CFBundleIdentifier</key>
-    <string>com.eugenerat.DualAudioTranscriber</string>
+    <string>com.eugenerat.DualSTT</string>
     <key>CFBundleName</key>
-    <string>DualAudioTranscriber</string>
+    <string>DualSTT</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -42,18 +42,18 @@ cat > "$CONTENTS/Info.plist" << 'EOF'
     <key>LSMinimumSystemVersion</key>
     <string>26.0</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>DualAudioTranscriber needs microphone access to transcribe your speech.</string>
+    <string>DualSTT needs microphone access to transcribe your speech.</string>
     <key>NSAudioCaptureUsageDescription</key>
-    <string>DualAudioTranscriber needs to capture system audio to transcribe what others are saying.</string>
+    <string>DualSTT needs to capture system audio to transcribe what others are saying.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
-    <string>DualAudioTranscriber uses on-device speech recognition to convert audio to text.</string>
+    <string>DualSTT uses on-device speech recognition to convert audio to text.</string>
 </dict>
 </plist>
 EOF
 
 # Sign with developer identity + entitlements
 codesign --force --sign "$IDENTITY" \
-    --entitlements DualAudioTranscriber.entitlements \
+    --entitlements DualSTT.entitlements \
     "$APP_DIR" 2>/dev/null
 
 echo "Launching..."
