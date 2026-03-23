@@ -51,7 +51,8 @@ final class BufferConverter: @unchecked Sendable {
         else { return nil }
 
         var consumed = false
-        let status = converter.convert(to: converted, error: nil) { _, outStatus in
+        var error: NSError?
+        let status = converter.convert(to: converted, error: &error) { _, outStatus in
             if consumed {
                 outStatus.pointee = .noDataNow
                 return nil
@@ -60,7 +61,10 @@ final class BufferConverter: @unchecked Sendable {
             outStatus.pointee = .haveData
             return buffer
         }
-        guard status != .error else { return nil }
+        guard status != .error else {
+            if let error { log.error("Conversion failed: \(error)") }
+            return nil
+        }
         return converted
     }
 }

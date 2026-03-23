@@ -1,5 +1,4 @@
 import SwiftUI
-import DualSTT
 
 struct RecordingIndicator: View {
     @State private var isAnimating = false

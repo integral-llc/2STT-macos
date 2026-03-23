@@ -5,7 +5,7 @@ let package = Package(
     name: "DualSTT",
     platforms: [.macOS(.v26)],
     products: [
-        .library(name: "DualSTT", targets: ["DualSTT"]),
+        .library(name: "DualSTT", targets: ["DualSTT"])
     ],
     targets: [
         .target(
@@ -15,34 +15,18 @@ let package = Package(
                 .linkedFramework("AVFoundation"),
                 .linkedFramework("CoreAudio"),
                 .linkedFramework("AudioToolbox"),
-                .linkedFramework("Speech"),
+                .linkedFramework("Speech")
             ]
         ),
         .executableTarget(
             name: "DualSTTApp",
             dependencies: ["DualSTT"],
-            path: "Sources/DualSTTApp",
-            linkerSettings: [
-                .linkedFramework("AVFoundation"),
-                .linkedFramework("CoreAudio"),
-                .linkedFramework("AudioToolbox"),
-                .linkedFramework("Speech"),
-            ]
-        ),
-        .executableTarget(
-            name: "AudioPipelineCLITests",
-            path: "Sources/AudioPipelineCLITests",
-            linkerSettings: [
-                .linkedFramework("AVFoundation"),
-                .linkedFramework("CoreAudio"),
-                .linkedFramework("AudioToolbox"),
-                .linkedFramework("Speech"),
-            ]
+            path: "Sources/DualSTTApp"
         ),
         .testTarget(
             name: "DualSTTTests",
             dependencies: ["DualSTT"],
             path: "Tests/DualSTTTests"
-        ),
+        )
     ]
 )
