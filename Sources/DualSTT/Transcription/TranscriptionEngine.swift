@@ -1,6 +1,6 @@
-import Foundation
 import AVFoundation
 import CoreAudio
+import Foundation
 import os.log
 
 private let log = Logger(subsystem: "com.eugenerat.DualSTT", category: "TranscriptionEngine")
@@ -12,8 +12,8 @@ public final class TranscriptionEngine {
     public let permissions = PermissionState()
     public var isRecording = false
     public var error: String?
-    public var micDeviceName: String = "None"
-    public var systemAudioInfo: String = "None"
+    public var micDeviceName = "None"
+    public var systemAudioInfo = "None"
 
     private let micCapture = MicCaptureManager()
     private let systemCapture = SystemAudioCaptureManager()
@@ -32,9 +32,7 @@ public final class TranscriptionEngine {
             await permissions.requestMicrophone()
         }
         if permissions.speechRecognition == .unknown {
-            permissions.requestSpeechRecognition()
-            try? await Task.sleep(for: .milliseconds(500))
-            permissions.checkSpeechRecognition()
+            await permissions.requestSpeechRecognition()
         }
 
         do {

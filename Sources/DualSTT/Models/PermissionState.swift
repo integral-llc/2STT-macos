@@ -1,7 +1,7 @@
-import Foundation
 import AVFoundation
-import Speech
+import Foundation
 import os.log
+import Speech
 
 private let log = Logger(subsystem: "com.eugenerat.DualSTT", category: "Permissions")
 
@@ -33,7 +33,10 @@ public final class PermissionState {
         checkMicrophone()
         checkSpeechRecognition()
         checkSpeechModel()
-        log.fault("Permission check: mic=\(String(describing: self.microphone)) speech=\(String(describing: self.speechRecognition)) model=\(String(describing: self.speechModel)) sysAudio=\(String(describing: self.systemAudio))")
+        log
+            .fault(
+                "Permission check: mic=\(String(describing: self.microphone)) speech=\(String(describing: self.speechRecognition)) model=\(String(describing: self.speechModel)) sysAudio=\(String(describing: self.systemAudio))"
+            )
     }
 
     public func checkMicrophone() {
@@ -73,21 +76,22 @@ public final class PermissionState {
         log.fault("SpeechRecog: SFAuth=\(status.rawValue) -> \(String(describing: self.speechRecognition))")
     }
 
-    public func requestSpeechRecognition() {
+    public func requestSpeechRecognition() async {
         log.fault("Requesting speech recognition permission...")
-        SFSpeechRecognizer.requestAuthorization { [weak self] status in
-            Task { @MainActor in
-                switch status {
-                case .authorized:
-                    self?.speechRecognition = .granted
-                case .denied, .restricted:
-                    self?.speechRecognition = .denied
-                default:
-                    self?.speechRecognition = .unknown
-                }
-                log.fault("SpeechRecog request result: \(status.rawValue)")
+        let status = await withCheckedContinuation { continuation in
+            SFSpeechRecognizer.requestAuthorization { status in
+                continuation.resume(returning: status)
             }
         }
+        switch status {
+        case .authorized:
+            speechRecognition = .granted
+        case .denied, .restricted:
+            speechRecognition = .denied
+        default:
+            speechRecognition = .unknown
+        }
+        log.fault("SpeechRecog request result: \(status.rawValue)")
     }
 
     public func checkSpeechModel() {
