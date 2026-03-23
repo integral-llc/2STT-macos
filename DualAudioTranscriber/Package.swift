@@ -15,6 +15,16 @@ let package = Package(
                 .linkedFramework("Speech"),
             ]
         ),
+        .executableTarget(
+            name: "AudioPipelineCLITests",
+            path: "Sources/AudioPipelineCLITests",
+            linkerSettings: [
+                .linkedFramework("AVFoundation"),
+                .linkedFramework("CoreAudio"),
+                .linkedFramework("AudioToolbox"),
+                .linkedFramework("Speech"),
+            ]
+        ),
         .testTarget(
             name: "DualAudioTranscriberTests",
             dependencies: ["DualAudioTranscriber"],

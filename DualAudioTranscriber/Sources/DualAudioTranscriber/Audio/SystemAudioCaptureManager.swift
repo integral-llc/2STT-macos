@@ -11,6 +11,10 @@ final class SystemAudioCaptureManager: AudioCapturing, @unchecked Sendable {
     private var aggregateDeviceID: AudioObjectID = kAudioObjectUnknown
     private var ioProcID: AudioDeviceIOProcID?
     private var isRunning = false
+    private let processingQueue = DispatchQueue(
+        label: "com.eugenerat.DualAudioTranscriber.systemAudioProcessing",
+        qos: .userInteractive
+    )
 
     var onAudioBuffer: (@Sendable (AVAudioPCMBuffer, AVAudioTime) -> Void)?
 
@@ -151,7 +155,9 @@ final class SystemAudioCaptureManager: AudioCapturing, @unchecked Sendable {
             }
 
             let audioTime = AVAudioTime(hostTime: inInputTime.pointee.mHostTime)
-            self.onAudioBuffer?(pcmBuffer, audioTime)
+            self.processingQueue.async {
+                self.onAudioBuffer?(pcmBuffer, audioTime)
+            }
         }
 
         log.fault("IO proc status: \(ioStatus)")

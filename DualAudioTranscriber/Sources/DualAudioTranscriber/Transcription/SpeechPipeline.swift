@@ -1,6 +1,5 @@
 @preconcurrency import Speech
 import AVFoundation
-import CoreMedia
 import os.log
 
 private let log = Logger(subsystem: "com.eugenerat.DualAudioTranscriber", category: "SpeechPipeline")
@@ -13,6 +12,8 @@ final class SpeechPipeline: @unchecked Sendable {
     private var resultsTask: Task<Void, Never>?
     private var analysisTask: Task<Void, Never>?
     private var isActive = false
+
+    private let lock = NSLock()
 
     // Audio format conversion - SpeechAnalyzer requires 16kHz Int16 mono
     private var targetFormat: AVAudioFormat?
@@ -67,10 +68,7 @@ final class SpeechPipeline: @unchecked Sendable {
                 for try await result in transcriber.results {
                     guard let self else { return }
                     let text = String(result.text.characters)
-                    let rangeEnd = CMTimeRangeGetEnd(result.range)
-                    let isFinal = CMTIME_IS_VALID(result.resultsFinalizationTime)
-                        && CMTimeCompare(rangeEnd, result.resultsFinalizationTime) <= 0
-                    self.onTranscript?(text, isFinal)
+                    self.onTranscript?(text, result.isFinal)
                 }
             } catch is CancellationError {
                 // expected
@@ -82,7 +80,7 @@ final class SpeechPipeline: @unchecked Sendable {
 
         analysisTask = Task { [analyzer, source = self.source] in
             do {
-                let _ = try await analyzer.analyzeSequence(inputSequence)
+                try await analyzer.start(inputSequence: inputSequence)
             } catch is CancellationError {
                 // expected
             } catch {
@@ -95,16 +93,26 @@ final class SpeechPipeline: @unchecked Sendable {
     }
 
     func appendAudio(_ buffer: AVAudioPCMBuffer) {
+        lock.lock()
+        defer { lock.unlock() }
+
         guard isActive, let targetFormat else { return }
 
-        // Lazy converter creation on first buffer
+        let srcFormat = buffer.format
+
+        // Invalidate converter if the input format changed (e.g. device switch)
+        if let existing = converter, existing.inputFormat != srcFormat {
+            log.fault("[\(self.source.rawValue)] input format changed, recreating converter")
+            self.converter = nil
+        }
+
         if converter == nil {
-            let srcFormat = buffer.format
             if srcFormat.sampleRate == targetFormat.sampleRate
                 && srcFormat.channelCount == targetFormat.channelCount
                 && srcFormat.commonFormat == targetFormat.commonFormat {
                 // Formats match - no conversion needed
             } else if let c = AVAudioConverter(from: srcFormat, to: targetFormat) {
+                c.primeMethod = .none
                 self.converter = c
                 log.fault("[\(self.source.rawValue)] converter: \(srcFormat.sampleRate)Hz \(srcFormat.channelCount)ch -> \(targetFormat.sampleRate)Hz \(targetFormat.channelCount)ch")
             } else {
@@ -114,7 +122,7 @@ final class SpeechPipeline: @unchecked Sendable {
         }
 
         if let converter {
-            let ratio = targetFormat.sampleRate / buffer.format.sampleRate
+            let ratio = targetFormat.sampleRate / srcFormat.sampleRate
             let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 1
             guard let converted = AVAudioPCMBuffer(
                 pcmFormat: targetFormat, frameCapacity: capacity
@@ -131,7 +139,7 @@ final class SpeechPipeline: @unchecked Sendable {
                 outStatus.pointee = .haveData
                 return buffer
             }
-            guard status == .haveData || status == .endOfStream else { return }
+            guard status != .error else { return }
             inputContinuation?.yield(AnalyzerInput(buffer: converted))
         } else {
             inputContinuation?.yield(AnalyzerInput(buffer: buffer))
