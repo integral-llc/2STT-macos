@@ -1,7 +1,7 @@
 import AVFoundation
 import os.log
 
-private let log = Logger(subsystem: "com.eugenerat.DualSTT", category: "MicCapture")
+private let log = Logger(subsystem: "com.zintegral.DualSTT", category: "MicCapture")
 
 @Observable
 public final class MicCaptureManager: AudioCapturing, @unchecked Sendable {
@@ -18,7 +18,10 @@ public final class MicCaptureManager: AudioCapturing, @unchecked Sendable {
         let inputNode = audioEngine.inputNode
         let hwFormat = inputNode.inputFormat(forBus: 0)
 
-        log.info("Mic hardware format: sampleRate=\(hwFormat.sampleRate) channels=\(hwFormat.channelCount) bitsPerChannel=\(hwFormat.streamDescription.pointee.mBitsPerChannel)")
+        log
+            .info(
+                "Mic hardware format: sampleRate=\(hwFormat.sampleRate) channels=\(hwFormat.channelCount) bitsPerChannel=\(hwFormat.streamDescription.pointee.mBitsPerChannel)"
+            )
 
         guard hwFormat.sampleRate > 0, hwFormat.channelCount > 0 else {
             log.error("No microphone available (sampleRate=\(hwFormat.sampleRate) channels=\(hwFormat.channelCount))")

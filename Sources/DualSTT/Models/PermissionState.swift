@@ -3,7 +3,7 @@ import Foundation
 import os.log
 import Speech
 
-private let log = Logger(subsystem: "com.eugenerat.DualSTT", category: "Permissions")
+private let log = Logger(subsystem: "com.zintegral.DualSTT", category: "Permissions")
 
 public enum PermissionStatus: Sendable {
     case unknown

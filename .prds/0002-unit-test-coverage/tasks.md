@@ -33,7 +33,7 @@ Derived from [prd.md](./prd.md). Update as implementation progresses.
 
 ### 5. Logger Subsystem Update
 
-- [ ] Change all Logger subsystem strings from `"com.eugenerat.DualAudioTranscriber"` to `"com.eugenerat.DualSTT"` in library files
+- [ ] Change all Logger subsystem strings from `"com.zintegral.DualAudioTranscriber"` to `"com.zintegral.DualSTT"` in library files
 
 ### 6. Test Restructure
 

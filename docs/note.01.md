@@ -25,7 +25,7 @@ real-time thread before calling `onAudioBuffer`. Add a serial dispatch queue:
 
 ```swift
 private let processingQueue = DispatchQueue(
-    label: "com.eugenerat.DualAudioTranscriber.systemAudioProcessing",
+    label: "com.zintegral.DualAudioTranscriber.systemAudioProcessing",
     qos: .userInteractive
 )
 ```

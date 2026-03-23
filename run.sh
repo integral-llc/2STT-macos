@@ -30,7 +30,7 @@ cat > "$CONTENTS/Info.plist" << 'EOF'
     <key>CFBundleExecutable</key>
     <string>DualSTTApp</string>
     <key>CFBundleIdentifier</key>
-    <string>com.eugenerat.DualSTT</string>
+    <string>com.zintegral.DualSTT</string>
     <key>CFBundleName</key>
     <string>DualSTT</string>
     <key>CFBundlePackageType</key>

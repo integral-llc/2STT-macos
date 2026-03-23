@@ -1,8 +1,8 @@
-@preconcurrency import Speech
 import AVFoundation
 import os.log
+@preconcurrency import Speech
 
-private let log = Logger(subsystem: "com.eugenerat.DualSTT", category: "SpeechPipeline")
+private let log = Logger(subsystem: "com.zintegral.DualSTT", category: "SpeechPipeline")
 
 public final class SpeechPipeline: @unchecked Sendable {
     public let source: AudioSource
@@ -29,7 +29,8 @@ public final class SpeechPipeline: @unchecked Sendable {
 
         guard let resolvedLocale = await SpeechTranscriber.supportedLocale(
             equivalentTo: locale
-        ) else {
+        )
+        else {
             throw TranscriptionError.localeNotSupported(locale)
         }
 
@@ -49,7 +50,8 @@ public final class SpeechPipeline: @unchecked Sendable {
         // Get the format SpeechAnalyzer actually wants (16kHz Int16 mono)
         guard let bestFormat = await SpeechAnalyzer.bestAvailableAudioFormat(
             compatibleWith: [transcriber]
-        ) else {
+        )
+        else {
             throw TranscriptionError.modelNotInstalled(resolvedLocale)
         }
         self.bufferConverter = BufferConverter(targetFormat: bestFormat)

@@ -12,5 +12,5 @@ Running log of decisions, scope changes, and clarifications made after the PRD w
 | 2026-03-23 | PRD expanded to cover full SPM library extraction | Original PRD only captured unit test plan; tech note also specifies directory restructure, access control, exporter relocation, consumer integration, and versioning |
 | 2026-03-23 | Exporters move to library (Option A) | PlainTextExporter and SRTExporter are small (52 lines total), generic, and any consumer would want export. Avoids complex separate test target. |
 | 2026-03-23 | SpeechPipeline made public           | Flank needs flexibility to wire system audio to pipeline without full TranscriptionEngine; BufferConverter stays internal as implementation detail |
-| 2026-03-23 | Logger subsystem changes to "com.eugenerat.DualSTT" | Separates library logs from app logs in Console.app |
+| 2026-03-23 | Logger subsystem changes to "com.zintegral.DualSTT" | Separates library logs from app logs in Console.app |
 | 2026-03-23 | Tag v1.0.0 after verification       | Enables Flank to pin to stable version via SPM |

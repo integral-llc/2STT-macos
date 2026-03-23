@@ -291,7 +291,7 @@ Extract it into `Sources/DualSTT/Transcription/BufferConverter.swift`:
 import AVFoundation
 import os.log
 
-private let log = Logger(subsystem: "com.eugenerat.DualSTT", category: "BufferConverter")
+private let log = Logger(subsystem: "com.zintegral.DualSTT", category: "BufferConverter")
 
 final class BufferConverter: @unchecked Sendable {
     private var converter: AVAudioConverter?
@@ -373,11 +373,11 @@ func appendAudio(_ buffer: AVAudioPCMBuffer) {
 
 Change all Logger subsystem strings from:
 ```swift
-Logger(subsystem: "com.eugenerat.DualAudioTranscriber", category: "...")
+Logger(subsystem: "com.zintegral.DualAudioTranscriber", category: "...")
 ```
 To:
 ```swift
-Logger(subsystem: "com.eugenerat.DualSTT", category: "...")
+Logger(subsystem: "com.zintegral.DualSTT", category: "...")
 ```
 
 This separates library logs from app logs in Console.app.
@@ -557,7 +557,7 @@ Execute in order:
 - [ ] Move export files: PlainTextExporter.swift, SRTExporter.swift
 - [ ] Extract BufferConverter.swift from SpeechPipeline inline code
 - [ ] Add `public` access modifiers per the rules above
-- [ ] Update all Logger subsystems to "com.eugenerat.DualSTT"
+- [ ] Update all Logger subsystems to "com.zintegral.DualSTT"
 - [ ] Remove moved files from Sources/DualAudioTranscriber/
 - [ ] Add `import DualSTT` to all remaining app files (App.swift + Views)
 - [ ] Replace Package.swift with the new multi-target version

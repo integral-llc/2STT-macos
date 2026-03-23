@@ -90,7 +90,7 @@ Internal (implementation details):
 
 ### Logger Subsystem
 
-- All library files change logger subsystem from `"com.eugenerat.DualAudioTranscriber"` to `"com.eugenerat.DualSTT"` so library logs are distinguishable from app logs in Console.app.
+- All library files change logger subsystem from `"com.zintegral.DualAudioTranscriber"` to `"com.zintegral.DualSTT"` so library logs are distinguishable from app logs in Console.app.
 
 ### Consumer Integration
 

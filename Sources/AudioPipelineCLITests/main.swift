@@ -1,20 +1,20 @@
-@preconcurrency import Speech
+import AudioToolbox
 @preconcurrency import AVFoundation
 import CoreAudio
-import AudioToolbox
 import Foundation
 import os.log
+@preconcurrency import Speech
 
 private let log = Logger(
-    subsystem: "com.eugenerat.DualSTT",
+    subsystem: "com.zintegral.DualSTT",
     category: "CLITests"
 )
 
 // MARK: - Test Infrastructure
 
-nonisolated(unsafe) private var passCount = 0
-nonisolated(unsafe) private var failCount = 0
-nonisolated(unsafe) private var skipCount = 0
+private nonisolated(unsafe) var passCount = 0
+private nonisolated(unsafe) var failCount = 0
+private nonisolated(unsafe) var skipCount = 0
 
 private enum TestFailure: Error, CustomStringConvertible {
     case assertion(String)
@@ -71,7 +71,8 @@ private func convertBuffer(
     let capacity = AVAudioFrameCount(Double(input.frameLength) * ratio) + 1
     guard let output = AVAudioPCMBuffer(
         pcmFormat: targetFormat, frameCapacity: capacity
-    ) else { return nil }
+    )
+    else { return nil }
     var consumed = false
     var error: NSError?
     let status = converter.convert(to: output, error: &error) { _, outStatus in
@@ -95,13 +96,24 @@ private func convertBuffer(
 private final class LockedCounter: @unchecked Sendable {
     private let lock = NSLock()
     private var _value = 0
-    var value: Int { lock.lock(); defer { lock.unlock() }; return _value }
-    func increment() { lock.lock(); _value += 1; lock.unlock() }
+    var value: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return _value
+    }
+
+    func increment() {
+        lock.lock()
+        _value += 1
+        lock.unlock()
+    }
 }
 
 private struct UnsafeSendable<T>: @unchecked Sendable {
     let value: T
-    init(_ value: T) { self.value = value }
+    init(_ value: T) {
+        self.value = value
+    }
 }
 
 private final class TranscriptionCollector: @unchecked Sendable {
@@ -109,8 +121,17 @@ private final class TranscriptionCollector: @unchecked Sendable {
     private var _lastText = ""
     private var _gotFinal = false
 
-    var lastText: String { lock.lock(); defer { lock.unlock() }; return _lastText }
-    var gotFinal: Bool { lock.lock(); defer { lock.unlock() }; return _gotFinal }
+    var lastText: String {
+        lock.lock()
+        defer { lock.unlock() }
+        return _lastText
+    }
+
+    var gotFinal: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return _gotFinal
+    }
 
     func update(text: String, isFinal: Bool) {
         lock.lock()
@@ -241,7 +262,9 @@ private func testIssue1_RealtimeThreadDispatch() {
 
         for _ in 0..<iterations {
             group.enter()
-            queue.async { counter.increment(); group.leave() }
+            queue.async { counter.increment()
+                group.leave()
+            }
         }
 
         try expect(group.wait(timeout: .now() + 5) == .success, "timed out")
@@ -264,7 +287,9 @@ private func testIssue6_LockThreadSafety() {
         for _ in 0..<iterations {
             group.enter()
             queue.async {
-                lock.lock(); counter += 1; lock.unlock()
+                lock.lock()
+                counter += 1
+                lock.unlock()
                 group.leave()
             }
         }
@@ -277,7 +302,9 @@ private func testIssue6_LockThreadSafety() {
         let lock = NSLock()
         var value = 0
         for _ in 0..<100_000 {
-            lock.lock(); value += 1; lock.unlock()
+            lock.lock()
+            value += 1
+            lock.unlock()
         }
         try expect(value == 100_000, "lost increments")
     }
@@ -369,18 +396,21 @@ private func testE2E_SystemAudioTranscription() async {
         proc.waitUntilExit()
         guard proc.terminationStatus == 0 else {
             print("  SKIP  'say' command failed (\(proc.terminationStatus))")
-            skipCount += 1; return
+            skipCount += 1
+            return
         }
     } catch {
         print("  SKIP  cannot generate test audio: \(error)")
-        skipCount += 1; return
+        skipCount += 1
+        return
     }
 
     // 2. Prepare speech recognition
     let locale = Locale(identifier: "en-US")
     guard let resolved = await SpeechTranscriber.supportedLocale(equivalentTo: locale) else {
         print("  SKIP  en-US speech locale not supported")
-        skipCount += 1; return
+        skipCount += 1
+        return
     }
 
     let transcriber = SpeechTranscriber(locale: resolved, preset: .progressiveTranscription)
@@ -392,14 +422,17 @@ private func testE2E_SystemAudioTranscription() async {
         }
     } catch {
         print("  SKIP  speech model unavailable: \(error)")
-        skipCount += 1; return
+        skipCount += 1
+        return
     }
 
     guard let targetFormat = await SpeechAnalyzer.bestAvailableAudioFormat(
         compatibleWith: [transcriber]
-    ) else {
+    )
+    else {
         print("  SKIP  no compatible audio format for speech model")
-        skipCount += 1; return
+        skipCount += 1
+        return
     }
     print("  Speech target: \(targetFormat.sampleRate)Hz \(targetFormat.channelCount)ch")
 
@@ -437,7 +470,7 @@ private func testE2E_SystemAudioTranscription() async {
     let processingQueue = DispatchQueue(
         label: "com.test.systemAudioProcessing", qos: .userInteractive
     )
-    let pipelineLock = NSLock()  // Issue 6
+    let pipelineLock = NSLock() // Issue 6
     nonisolated(unsafe) var converter: AVAudioConverter?
 
     var tapID: AudioObjectID = kAudioObjectUnknown
@@ -466,11 +499,12 @@ private func testE2E_SystemAudioTranscription() async {
     let tapDesc = CATapDescription()
     tapDesc.isMixdown = true
     tapDesc.isExclusive = true
-    tapDesc.bundleIDs = ["com.eugenerat.AudioPipelineCLITests"]
+    tapDesc.bundleIDs = ["com.zintegral.AudioPipelineCLITests"]
 
     var localTapID: AudioObjectID = kAudioObjectUnknown
     guard AudioHardwareCreateProcessTap(tapDesc, &localTapID) == noErr else {
-        bail("process tap creation failed"); return
+        bail("process tap creation failed")
+        return
     }
     tapID = localTapID
 
@@ -482,12 +516,14 @@ private func testE2E_SystemAudioTranscription() async {
         mElement: kAudioObjectPropertyElementMain
     )
     guard AudioObjectGetPropertyData(tapID, &fmtAddr, 0, nil, &fmtSize, &tapFmt) == noErr else {
-        bail("tap format read failed"); return
+        bail("tap format read failed")
+        return
     }
     print("  Tap format: \(tapFmt.mSampleRate)Hz \(tapFmt.mChannelsPerFrame)ch")
 
     guard let avFormat = AVAudioFormat(streamDescription: &tapFmt) else {
-        bail("AVAudioFormat creation failed"); return
+        bail("AVAudioFormat creation failed")
+        return
     }
 
     // Aggregate device
@@ -499,12 +535,13 @@ private func testE2E_SystemAudioTranscription() async {
         kAudioAggregateDeviceTapListKey as String: [
             [kAudioSubTapUIDKey as String: tapUUID]
         ],
-        kAudioAggregateDeviceTapAutoStartKey as String: true,
+        kAudioAggregateDeviceTapAutoStartKey as String: true
     ]
 
     var localAggID: AudioObjectID = kAudioObjectUnknown
     guard AudioHardwareCreateAggregateDevice(aggDesc as CFDictionary, &localAggID) == noErr else {
-        bail("aggregate device creation failed"); return
+        bail("aggregate device creation failed")
+        return
     }
     aggID = localAggID
 
@@ -517,7 +554,7 @@ private func testE2E_SystemAudioTranscription() async {
     var localProcID: AudioDeviceIOProcID?
     let ioStatus = AudioDeviceCreateIOProcIDWithBlock(
         &localProcID, aggID, nil
-    ) { _, inInputData, inInputTime, _, _ in
+    ) { _, inInputData, _, _, _ in
         ioCallCount.increment()
         let chCount = Int(capturedTapFmt.mChannelsPerFrame)
         guard chCount > 0 else { return }
@@ -542,7 +579,8 @@ private func testE2E_SystemAudioTranscription() async {
 
         guard let pcmBuffer = AVAudioPCMBuffer(
             pcmFormat: avFormat, frameCapacity: frameCount
-        ) else { return }
+        )
+        else { return }
         pcmBuffer.frameLength = frameCount
 
         guard let dstData = pcmBuffer.floatChannelData else { return }
@@ -573,7 +611,9 @@ private func testE2E_SystemAudioTranscription() async {
             if let ch = pcmBuffer.floatChannelData?[0] {
                 var energy: Float = 0
                 let n = min(Int(pcmBuffer.frameLength), 256)
-                for i in 0..<n { energy += ch[i] * ch[i] }
+                for i in 0..<n {
+                    energy += ch[i] * ch[i]
+                }
                 if sqrt(energy / Float(n)) > 0.001 {
                     nonSilentCount.increment()
                 }
@@ -591,13 +631,12 @@ private func testE2E_SystemAudioTranscription() async {
             }
 
             if converter == nil {
-                if srcFmt.sampleRate == capturedTargetFmt.sampleRate
-                    && srcFmt.channelCount == capturedTargetFmt.channelCount
-                    && srcFmt.commonFormat == capturedTargetFmt.commonFormat
-                {
+                if srcFmt.sampleRate == capturedTargetFmt.sampleRate,
+                   srcFmt.channelCount == capturedTargetFmt.channelCount,
+                   srcFmt.commonFormat == capturedTargetFmt.commonFormat {
                     // No conversion needed
                 } else if let c = AVAudioConverter(from: srcFmt, to: capturedTargetFmt) {
-                    c.primeMethod = .none  // Issue 2
+                    c.primeMethod = .none // Issue 2
                     converter = c
                 } else {
                     return
@@ -609,12 +648,15 @@ private func testE2E_SystemAudioTranscription() async {
                 let cap = AVAudioFrameCount(Double(pcmBuffer.frameLength) * ratio) + 1
                 guard let out = AVAudioPCMBuffer(
                     pcmFormat: capturedTargetFmt, frameCapacity: cap
-                ) else { return }
+                )
+                else { return }
 
                 var consumed = false
                 var err: NSError?
                 let st = conv.convert(to: out, error: &err) { _, outStatus in
-                    if consumed { outStatus.pointee = .noDataNow; return nil }
+                    if consumed { outStatus.pointee = .noDataNow
+                        return nil
+                    }
                     consumed = true
                     outStatus.pointee = .haveData
                     return pcmBuffer
@@ -630,12 +672,14 @@ private func testE2E_SystemAudioTranscription() async {
     }
 
     guard ioStatus == noErr, let localProcID else {
-        bail("IO proc creation failed (\(ioStatus))"); return
+        bail("IO proc creation failed (\(ioStatus))")
+        return
     }
     ioProcID = localProcID
 
     guard AudioDeviceStart(aggID, localProcID) == noErr else {
-        bail("device start failed"); return
+        bail("device start failed")
+        return
     }
     print("  System audio capture started")
 
@@ -648,7 +692,8 @@ private func testE2E_SystemAudioTranscription() async {
         try play.run()
         play.waitUntilExit()
     } catch {
-        bail("afplay failed: \(error)"); return
+        bail("afplay failed: \(error)")
+        return
     }
 
     let nonSilent = nonSilentCount.value
@@ -673,7 +718,7 @@ private func testE2E_SystemAudioTranscription() async {
     // 7. Verify
     let totalNonSilent = nonSilentCount.value
     let totalIO = ioCallCount.value
-    if totalNonSilent == 0 && totalIO > 0 {
+    if totalNonSilent == 0, totalIO > 0 {
         print("  SKIP  All \(totalIO) captured buffers were silent.")
         print("        Process tap requires Screen Recording permission.")
         print("        Grant it in: System Settings > Privacy & Security > Screen Recording")

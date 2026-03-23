@@ -1,7 +1,7 @@
 import AVFoundation
 import os.log
 
-private let log = Logger(subsystem: "com.eugenerat.DualSTT", category: "BufferConverter")
+private let log = Logger(subsystem: "com.zintegral.DualSTT", category: "BufferConverter")
 
 final class BufferConverter: @unchecked Sendable {
     private let targetFormat: AVAudioFormat

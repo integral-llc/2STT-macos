@@ -1,9 +1,9 @@
-import CoreAudio
-import AVFoundation
 import AudioToolbox
+import AVFoundation
+import CoreAudio
 import os.log
 
-private let log = Logger(subsystem: "com.eugenerat.DualSTT", category: "SystemAudioCapture")
+private let log = Logger(subsystem: "com.zintegral.DualSTT", category: "SystemAudioCapture")
 
 @Observable
 public final class SystemAudioCaptureManager: AudioCapturing, @unchecked Sendable {
@@ -12,7 +12,7 @@ public final class SystemAudioCaptureManager: AudioCapturing, @unchecked Sendabl
     private var ioProcID: AudioDeviceIOProcID?
     private var isRunning = false
     private let processingQueue = DispatchQueue(
-        label: "com.eugenerat.DualSTT.systemAudioProcessing",
+        label: "com.zintegral.DualSTT.systemAudioProcessing",
         qos: .userInteractive
     )
 
@@ -23,15 +23,15 @@ public final class SystemAudioCaptureManager: AudioCapturing, @unchecked Sendabl
     public func start() throws {
         guard !isRunning else { return }
 
-        let bundleID = Bundle.main.bundleIdentifier ?? "com.eugenerat.DualSTT"
+        let bundleID = Bundle.main.bundleIdentifier ?? "com.zintegral.DualSTT"
         log.fault("Creating CATapDescription - excluding bundleID=\(bundleID)")
 
         // Use default init + properties. The stereoGlobalTapButExcludeProcesses
         // initializer takes CoreAudio process AudioObjectIDs (NOT PIDs).
         // On macOS 26, bundleIDs is the simpler approach.
         let tapDescription = CATapDescription()
-        tapDescription.isMixdown = true      // stereo mixdown
-        tapDescription.isExclusive = true     // exclude listed processes
+        tapDescription.isMixdown = true // stereo mixdown
+        tapDescription.isExclusive = true // exclude listed processes
         tapDescription.bundleIDs = [bundleID] // exclude our own audio
 
         let tapUUID = tapDescription.uuid.uuidString
@@ -63,7 +63,10 @@ public final class SystemAudioCaptureManager: AudioCapturing, @unchecked Sendabl
             throw AudioCaptureError.formatReadFailed(formatStatus)
         }
 
-        log.fault("Tap format: sampleRate=\(format.mSampleRate) channels=\(format.mChannelsPerFrame) bitsPerChannel=\(format.mBitsPerChannel) formatFlags=\(format.mFormatFlags) bytesPerFrame=\(format.mBytesPerFrame)")
+        log
+            .fault(
+                "Tap format: sampleRate=\(format.mSampleRate) channels=\(format.mChannelsPerFrame) bitsPerChannel=\(format.mBitsPerChannel) formatFlags=\(format.mFormatFlags) bytesPerFrame=\(format.mBytesPerFrame)"
+            )
 
         let aggregateDesc: [String: Any] = [
             kAudioAggregateDeviceNameKey as String: "DualSTT_Tap",
@@ -72,7 +75,7 @@ public final class SystemAudioCaptureManager: AudioCapturing, @unchecked Sendabl
             kAudioAggregateDeviceTapListKey as String: [
                 [kAudioSubTapUIDKey as String: tapUUID]
             ],
-            kAudioAggregateDeviceTapAutoStartKey as String: true,
+            kAudioAggregateDeviceTapAutoStartKey as String: true
         ]
 
         var aggID: AudioObjectID = kAudioObjectUnknown
@@ -121,7 +124,7 @@ public final class SystemAudioCaptureManager: AudioCapturing, @unchecked Sendabl
             } else {
                 frameCount = AVAudioFrameCount(
                     buffers[0].mDataByteSize /
-                    UInt32(MemoryLayout<Float>.size * channelCount)
+                        UInt32(MemoryLayout<Float>.size * channelCount)
                 )
             }
             guard frameCount > 0 else { return }
@@ -129,7 +132,8 @@ public final class SystemAudioCaptureManager: AudioCapturing, @unchecked Sendabl
             guard let pcmBuffer = AVAudioPCMBuffer(
                 pcmFormat: avFormat,
                 frameCapacity: frameCount
-            ) else { return }
+            )
+            else { return }
             pcmBuffer.frameLength = frameCount
 
             guard let dstData = pcmBuffer.floatChannelData else { return }

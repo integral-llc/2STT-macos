@@ -3,7 +3,7 @@ import CoreAudio
 import Foundation
 import os.log
 
-private let log = Logger(subsystem: "com.eugenerat.DualSTT", category: "TranscriptionEngine")
+private let log = Logger(subsystem: "com.zintegral.DualSTT", category: "TranscriptionEngine")
 
 @Observable
 @MainActor
