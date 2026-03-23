@@ -1,4 +1,4 @@
-import Speech
+@preconcurrency import Speech
 import AVFoundation
 import CoreMedia
 import os.log
@@ -14,6 +14,10 @@ final class SpeechPipeline: @unchecked Sendable {
     private var analysisTask: Task<Void, Never>?
     private var isActive = false
 
+    // Audio format conversion - SpeechAnalyzer requires 16kHz Int16 mono
+    private var targetFormat: AVAudioFormat?
+    private var converter: AVAudioConverter?
+
     var onTranscript: (@Sendable (String, Bool) -> Void)?
     var onError: (@Sendable (String) -> Void)?
 
@@ -24,52 +28,41 @@ final class SpeechPipeline: @unchecked Sendable {
     func prepare(locale: Locale = Locale(identifier: "en-US")) async throws {
         log.fault("[\(self.source.rawValue)] prepare() locale=\(locale.identifier)")
 
-        // Verify locale support
         guard let resolvedLocale = await SpeechTranscriber.supportedLocale(
             equivalentTo: locale
         ) else {
             throw TranscriptionError.localeNotSupported(locale)
         }
-        log.fault("[\(self.source.rawValue)] resolved locale=\(resolvedLocale.identifier)")
 
-        // Create transcriber
         let transcriber = SpeechTranscriber(
             locale: resolvedLocale,
             preset: .progressiveTranscription
         )
         self.transcriber = transcriber
 
-        // Ensure model is downloaded
         if let request = try await AssetInventory.assetInstallationRequest(
             supporting: [transcriber]
         ) {
             log.fault("[\(self.source.rawValue)] downloading speech model...")
             try await request.downloadAndInstall()
-            log.fault("[\(self.source.rawValue)] model download complete")
         }
 
-        // Verify model is installed
-        let installed = await SpeechTranscriber.installedLocales
-        let modelReady = installed.contains {
-            $0.identifier(.bcp47) == resolvedLocale.identifier(.bcp47)
-        }
-        log.fault("[\(self.source.rawValue)] modelReady=\(modelReady) installed=\(installed.map { $0.identifier })")
-        guard modelReady else {
+        // Get the format SpeechAnalyzer actually wants (16kHz Int16 mono)
+        guard let bestFormat = await SpeechAnalyzer.bestAvailableAudioFormat(
+            compatibleWith: [transcriber]
+        ) else {
             throw TranscriptionError.modelNotInstalled(resolvedLocale)
         }
+        self.targetFormat = bestFormat
+        log.fault("[\(self.source.rawValue)] target format: \(bestFormat.sampleRate)Hz \(bestFormat.channelCount)ch")
 
-        // Create input stream for feeding audio buffers
         let (inputSequence, continuation) = AsyncStream.makeStream(of: AnalyzerInput.self)
         self.inputContinuation = continuation
 
-        // Create analyzer
         let analyzer = SpeechAnalyzer(modules: [transcriber])
         self.analyzer = analyzer
-        log.fault("[\(self.source.rawValue)] SpeechAnalyzer created")
 
-        // Consume transcription results
         resultsTask = Task { [weak self, source = self.source] in
-            log.fault("[\(source.rawValue)] results task ENTERED")
             do {
                 for try await result in transcriber.results {
                     guard let self else { return }
@@ -79,23 +72,19 @@ final class SpeechPipeline: @unchecked Sendable {
                         && CMTimeCompare(rangeEnd, result.resultsFinalizationTime) <= 0
                     self.onTranscript?(text, isFinal)
                 }
-                log.fault("[\(source.rawValue)] results stream ended")
             } catch is CancellationError {
-                log.fault("[\(source.rawValue)] results cancelled")
+                // expected
             } catch {
                 log.fault("[\(source.rawValue)] results ERROR: \(error)")
-                self?.onError?("[\(source.rawValue)] Transcription error: \(error.localizedDescription)")
+                self?.onError?("[\(source.rawValue)] \(error.localizedDescription)")
             }
         }
 
-        // Start analysis - blocks until input stream finishes
         analysisTask = Task { [analyzer, source = self.source] in
-            log.fault("[\(source.rawValue)] analyzeSequence ENTERED")
             do {
                 let _ = try await analyzer.analyzeSequence(inputSequence)
-                log.fault("[\(source.rawValue)] analyzeSequence finished")
             } catch is CancellationError {
-                log.fault("[\(source.rawValue)] analyzeSequence cancelled")
+                // expected
             } catch {
                 log.fault("[\(source.rawValue)] analyzeSequence ERROR: \(error)")
             }
@@ -106,19 +95,54 @@ final class SpeechPipeline: @unchecked Sendable {
     }
 
     func appendAudio(_ buffer: AVAudioPCMBuffer) {
-        guard isActive else { return }
-        inputContinuation?.yield(AnalyzerInput(buffer: buffer))
+        guard isActive, let targetFormat else { return }
+
+        // Lazy converter creation on first buffer
+        if converter == nil {
+            let srcFormat = buffer.format
+            if srcFormat.sampleRate == targetFormat.sampleRate
+                && srcFormat.channelCount == targetFormat.channelCount
+                && srcFormat.commonFormat == targetFormat.commonFormat {
+                // Formats match - no conversion needed
+            } else if let c = AVAudioConverter(from: srcFormat, to: targetFormat) {
+                self.converter = c
+                log.fault("[\(self.source.rawValue)] converter: \(srcFormat.sampleRate)Hz \(srcFormat.channelCount)ch -> \(targetFormat.sampleRate)Hz \(targetFormat.channelCount)ch")
+            } else {
+                log.fault("[\(self.source.rawValue)] FAILED to create converter")
+                return
+            }
+        }
+
+        if let converter {
+            let ratio = targetFormat.sampleRate / buffer.format.sampleRate
+            let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 1
+            guard let converted = AVAudioPCMBuffer(
+                pcmFormat: targetFormat, frameCapacity: capacity
+            ) else { return }
+
+            var error: NSError?
+            var consumed = false
+            let status = converter.convert(to: converted, error: &error) { _, outStatus in
+                if consumed {
+                    outStatus.pointee = .noDataNow
+                    return nil
+                }
+                consumed = true
+                outStatus.pointee = .haveData
+                return buffer
+            }
+            guard status == .haveData || status == .endOfStream else { return }
+            inputContinuation?.yield(AnalyzerInput(buffer: converted))
+        } else {
+            inputContinuation?.yield(AnalyzerInput(buffer: buffer))
+        }
     }
 
     func finalize() async {
         guard isActive else { return }
         isActive = false
-        log.fault("[\(self.source.rawValue)] finalize()")
 
-        // End the input stream so analyzeSequence can complete
         inputContinuation?.finish()
-
-        // Finalize pending results
         do {
             try await analyzer?.finalizeAndFinishThroughEndOfInput()
         } catch {
@@ -132,5 +156,7 @@ final class SpeechPipeline: @unchecked Sendable {
         analyzer = nil
         transcriber = nil
         inputContinuation = nil
+        converter = nil
+        targetFormat = nil
     }
 }

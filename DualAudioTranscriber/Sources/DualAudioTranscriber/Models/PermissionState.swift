@@ -89,12 +89,10 @@ final class PermissionState {
     }
 
     func checkSpeechModel() {
-        log.fault("Checking speech model via SFSpeechRecognizer...")
         let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
         let available = recognizer?.isAvailable ?? false
-        let onDevice = recognizer?.supportsOnDeviceRecognition ?? false
         speechModel = available ? .granted : .unavailable
-        log.fault("Speech model: available=\(available) onDevice=\(onDevice)")
+        log.fault("Speech model: available=\(available)")
     }
 
     func markSystemAudio(_ status: PermissionStatus) {
